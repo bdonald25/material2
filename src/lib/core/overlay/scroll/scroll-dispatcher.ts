@@ -48,7 +48,10 @@ export class ScrollDispatcher {
    * @param scrollable Scrollable instance to be deregistered.
    */
   deregister(scrollable: Scrollable): void {
-    this.scrollableReferences.get(scrollable).unsubscribe();
+    if (this.scrollableReferences.get(scrollable) !== undefined
+      && !this.scrollableReferences.get(scrollable).closed) {
+      this.scrollableReferences.get(scrollable).unsubscribe();
+    }
     this.scrollableReferences.delete(scrollable);
   }
 
