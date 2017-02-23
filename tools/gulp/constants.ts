@@ -26,12 +26,13 @@ export const HTML_MINIFIER_OPTIONS = {
 
 export const LICENSE_BANNER = `/**
   * @license Angular Material v${MATERIAL_VERSION}
-  * Copyright (c) 2016 Google, Inc. https://material.angular.io/
+  * Copyright (c) 2017 Google, Inc. https://material.angular.io/
   * License: MIT
   */`;
 
 export const NPM_VENDOR_FILES = [
-  '@angular', 'core-js/client', 'hammerjs', 'rxjs', 'systemjs/dist', 'zone.js/dist'
+  '@angular', 'core-js/client', 'hammerjs', 'rxjs', 'systemjs/dist',
+  'zone.js/dist', 'web-animations-js'
 ];
 
 export const COMPONENTS_DIR = join(SOURCE_ROOT, 'lib');

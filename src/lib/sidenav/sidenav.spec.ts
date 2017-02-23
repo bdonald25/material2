@@ -57,7 +57,7 @@ describe('MdSidenav', () => {
       expect(testComponent.closeCount).toBe(0);
 
       let sidenavElement = fixture.debugElement.query(By.css('md-sidenav'));
-      let sidenavBackdropElement = fixture.debugElement.query(By.css('.md-sidenav-backdrop'));
+      let sidenavBackdropElement = fixture.debugElement.query(By.css('.mat-sidenav-backdrop'));
       expect(getComputedStyle(sidenavElement.nativeElement).visibility).toEqual('visible');
       expect(getComputedStyle(sidenavBackdropElement.nativeElement).visibility)
         .toEqual('visible');
@@ -194,7 +194,7 @@ describe('MdSidenav', () => {
       }).not.toThrow();
     }));
 
-    it('should emit the backdrop-clicked event when the backdrop is clicked', fakeAsync(() => {
+    it('should emit the backdropClick event when the backdrop is clicked', fakeAsync(() => {
       let fixture = TestBed.createComponent(BasicTestApp);
 
       let testComponent: BasicTestApp = fixture.debugElement.componentInstance;
@@ -208,7 +208,7 @@ describe('MdSidenav', () => {
 
       expect(testComponent.backdropClickedCount).toBe(0);
 
-      let sidenavBackdropElement = fixture.debugElement.query(By.css('.md-sidenav-backdrop'));
+      let sidenavBackdropElement = fixture.debugElement.query(By.css('.mat-sidenav-backdrop'));
       sidenavBackdropElement.nativeElement.click();
       fixture.detectChanges();
       tick();
@@ -264,6 +264,54 @@ describe('MdSidenav', () => {
       expect(testComponent.closeCount).toBe(1);
     }));
 
+    it('should not close by pressing escape when disableClose is set', fakeAsync(() => {
+      let fixture = TestBed.createComponent(BasicTestApp);
+      let testComponent = fixture.debugElement.componentInstance;
+      let sidenav = fixture.debugElement.query(By.directive(MdSidenav)).componentInstance;
+
+      sidenav.disableClose = true;
+      sidenav.open();
+
+      fixture.detectChanges();
+      endSidenavTransition(fixture);
+      tick();
+
+      sidenav.handleKeydown({
+        keyCode: ESCAPE,
+        stopPropagation: () => {}
+      });
+
+      fixture.detectChanges();
+      endSidenavTransition(fixture);
+      tick();
+
+      expect(testComponent.closeCount).toBe(0);
+    }));
+
+    it('should not close by clicking on the backdrop when disableClose is set', fakeAsync(() => {
+      let fixture = TestBed.createComponent(BasicTestApp);
+      let testComponent = fixture.debugElement.componentInstance;
+      let sidenav = fixture.debugElement.query(By.directive(MdSidenav)).componentInstance;
+
+      sidenav.disableClose = true;
+      sidenav.open();
+
+      fixture.detectChanges();
+      endSidenavTransition(fixture);
+      tick();
+
+      let backdropEl = fixture.debugElement.query(By.css('.mat-sidenav-backdrop')).nativeElement;
+      backdropEl.click();
+      fixture.detectChanges();
+      tick();
+
+      fixture.detectChanges();
+      endSidenavTransition(fixture);
+      tick();
+
+      expect(testComponent.closeCount).toBe(0);
+    }));
+
     it('should restore focus to the trigger element on close', fakeAsync(() => {
       let fixture = TestBed.createComponent(BasicTestApp);
       let sidenav: MdSidenav = fixture.debugElement
@@ -298,8 +346,8 @@ describe('MdSidenav', () => {
 
       let sidenavEl = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
 
-      expect(sidenavEl.classList).toContain('md-sidenav-closed');
-      expect(sidenavEl.classList).not.toContain('md-sidenav-opened');
+      expect(sidenavEl.classList).toContain('mat-sidenav-closed');
+      expect(sidenavEl.classList).not.toContain('mat-sidenav-opened');
     });
 
     it('should correctly parse opened="true"', () => {
@@ -310,8 +358,8 @@ describe('MdSidenav', () => {
       let sidenavEl = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
       let testComponent = fixture.debugElement.query(By.css('md-sidenav')).componentInstance;
 
-      expect(sidenavEl.classList).not.toContain('md-sidenav-closed');
-      expect(sidenavEl.classList).toContain('md-sidenav-opened');
+      expect(sidenavEl.classList).not.toContain('mat-sidenav-closed');
+      expect(sidenavEl.classList).toContain('mat-sidenav-opened');
 
       expect((testComponent as any)._toggleAnimationPromise).toBeNull();
     });
@@ -331,17 +379,17 @@ describe('MdSidenav', () => {
 
       const testComponent: SidenavDynamicAlign = fixture.debugElement.componentInstance;
       const sidenavEl = fixture.debugElement.query(By.css('md-sidenav')).nativeElement;
-      expect(sidenavEl.classList).not.toContain('md-sidenav-invalid');
+      expect(sidenavEl.classList).not.toContain('mat-sidenav-invalid');
 
       testComponent.sidenav1Align = 'end';
       fixture.detectChanges();
 
-      expect(sidenavEl.classList).toContain('md-sidenav-invalid');
+      expect(sidenavEl.classList).toContain('mat-sidenav-invalid');
 
       testComponent.sidenav2Align = 'start';
       fixture.detectChanges();
 
-      expect(sidenavEl.classList).not.toContain('md-sidenav-invalid');
+      expect(sidenavEl.classList).not.toContain('mat-sidenav-invalid');
     });
   });
 
@@ -414,7 +462,7 @@ class SidenavContainerTwoSidenavTestApp { }
 /** Test component that contains an MdSidenavContainer and one MdSidenav. */
 @Component({
   template: `
-    <md-sidenav-container (backdrop-clicked)="backdropClicked()">
+    <md-sidenav-container (backdropClick)="backdropClicked()">
       <md-sidenav #sidenav align="start"
                   (open-start)="openStart()"
                   (open)="open()"

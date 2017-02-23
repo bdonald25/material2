@@ -10,12 +10,14 @@ import {
   Output,
   QueryList,
   Renderer,
+  Self,
   ViewEncapsulation,
   ViewChild,
+  ChangeDetectorRef,
 } from '@angular/core';
-import {MdOption} from './option';
+import {MdOption, MdOptionSelectEvent} from '../core/option/option';
 import {ENTER, SPACE} from '../core/keyboard/keycodes';
-import {ListKeyManager} from '../core/a11y/list-key-manager';
+import {FocusKeyManager} from '../core/a11y/focus-key-manager';
 import {Dir} from '../core/rtl/dir';
 import {Subscription} from 'rxjs/Subscription';
 import {transformPlaceholder, transformPanel, fadeInContent} from './select-animations';
@@ -23,6 +25,8 @@ import {ControlValueAccessor, NgControl} from '@angular/forms';
 import {coerceBooleanProperty} from '../core/coercion/boolean-property';
 import {ConnectedOverlayDirective} from '../core/overlay/overlay-directives';
 import {ViewportRuler} from '../core/overlay/position/viewport-ruler';
+import 'rxjs/add/operator/startWith';
+
 
 /**
  * The following style constants are necessary to save here in order
@@ -64,6 +68,11 @@ export const SELECT_PANEL_PADDING_Y = 16;
  */
 export const SELECT_PANEL_VIEWPORT_PADDING = 8;
 
+/** Change event object that is emitted when the select value has changed. */
+export class MdSelectChange {
+  constructor(public source: MdSelect, public value: any) { }
+}
+
 @Component({
   moduleId: module.id,
   selector: 'md-select, mat-select',
@@ -78,7 +87,8 @@ export const SELECT_PANEL_VIEWPORT_PADDING = 8;
     '[attr.aria-disabled]': 'disabled.toString()',
     '[attr.aria-invalid]': '_control?.invalid || "false"',
     '[attr.aria-owns]': '_optionIds',
-    '[class.md-select-disabled]': 'disabled',
+    '[class.mat-select-disabled]': 'disabled',
+    '[class.mat-select]': 'true',
     '(keydown)': '_handleKeydown($event)',
     '(blur)': '_onBlur()'
   },
@@ -133,7 +143,7 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
   _selectedValueWidth: number;
 
   /** Manages keyboard events for options in the panel. */
-  _keyManager: ListKeyManager;
+  _keyManager: FocusKeyManager;
 
   /** View -> model callback called when value changes */
   _onChange = (value: any) => {};
@@ -146,6 +156,9 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
 
   /** The value of the select panel's transform-origin property. */
   _transformOrigin: string = 'top';
+
+  /** Whether the panel's animation is done. */
+  _panelDoneAnimating: boolean = false;
 
   /**
    * The x-offset of the overlay panel in relation to the trigger's top start corner.
@@ -214,14 +227,17 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
   set required(value: any) { this._required = coerceBooleanProperty(value); }
 
   /** Event emitted when the select has been opened. */
-  @Output() onOpen = new EventEmitter();
+  @Output() onOpen: EventEmitter<void> = new EventEmitter<void>();
 
   /** Event emitted when the select has been closed. */
-  @Output() onClose = new EventEmitter();
+  @Output() onClose: EventEmitter<void> = new EventEmitter<void>();
+
+  /** Event emitted when the selected value has been changed by the user. */
+  @Output() change: EventEmitter<MdSelectChange> = new EventEmitter<MdSelectChange>();
 
   constructor(private _element: ElementRef, private _renderer: Renderer,
-              private _viewportRuler: ViewportRuler, @Optional() private _dir: Dir,
-              @Optional() public _control: NgControl) {
+              private _viewportRuler: ViewportRuler, private _changeDetectorRef: ChangeDetectorRef,
+              @Optional() private _dir: Dir, @Self() @Optional() public _control: NgControl) {
     if (this._control) {
       this._control.valueAccessor = this;
     }
@@ -229,14 +245,28 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
 
   ngAfterContentInit() {
     this._initKeyManager();
-    this._resetOptions();
-    this._changeSubscription = this.options.changes.subscribe(() => this._resetOptions());
+
+    this._changeSubscription = this.options.changes.startWith(null).subscribe(() => {
+      this._resetOptions();
+
+      if (this._control) {
+        // Defer setting the value in order to avoid the "Expression
+        // has changed after it was checked" errors from Angular.
+        Promise.resolve(null).then(() => this._setSelectionByValue(this._control.value));
+      }
+    });
   }
 
   ngOnDestroy() {
     this._dropSubscriptions();
-    this._changeSubscription.unsubscribe();
-    this._tabSubscription.unsubscribe();
+
+    if (this._changeSubscription) {
+      this._changeSubscription.unsubscribe();
+    }
+
+    if (this._tabSubscription) {
+      this._tabSubscription.unsubscribe();
+    }
   }
 
   /** Toggles the overlay panel open or closed. */
@@ -246,7 +276,7 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
 
   /** Opens the overlay panel. */
   open(): void {
-    if (this.disabled) {
+    if (this.disabled || !this.options.length) {
       return;
     }
     this._calculateOverlayPosition();
@@ -270,16 +300,10 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
    * @param value New value to be written to the model.
    */
   writeValue(value: any): void {
-    if (!this.options) {
-      // In reactive forms, writeValue() will be called synchronously before
-      // the select's child options have been created. It's necessary to call
-      // writeValue() again after the options have been created to ensure any
-      // initial view value is set.
-      Promise.resolve(null).then(() => this.writeValue(value));
-      return;
+    if (this.options) {
+      this._setSelectionByValue(value);
+      this._changeDetectorRef.markForCheck();
     }
-
-    this._setSelectionByValue(value);
   }
 
   /**
@@ -343,8 +367,8 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
   }
 
   /**
-   * When the panel is finished animating, emits an event and focuses
-   * an option if the panel is open.
+   * When the panel element is finished transforming in (though not fading in), it
+   * emits an event and focuses an option if the panel is open.
    */
   _onPanelDone(): void {
     if (this.panelOpen) {
@@ -353,6 +377,14 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
     } else {
       this.onClose.emit();
     }
+  }
+
+  /**
+   * When the panel content is done fading in, the _panelDoneAnimating property is
+   * set so the proper class can be added to the panel.
+   */
+  _onFadeInDone(): void {
+    this._panelDoneAnimating = this.panelOpen;
   }
 
   /**
@@ -378,7 +410,7 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
    */
   _setScrollTop(): void {
     const scrollContainer =
-        this.overlayDir.overlayRef.overlayElement.querySelector('.md-select-panel');
+        this.overlayDir.overlayRef.overlayElement.querySelector('.mat-select-panel');
     scrollContainer.scrollTop = this._scrollTop;
   }
 
@@ -412,7 +444,7 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
 
   /** Sets up a key manager to listen to keyboard events on the overlay panel. */
   private _initKeyManager() {
-    this._keyManager = new ListKeyManager(this.options);
+    this._keyManager = new FocusKeyManager(this.options);
     this._tabSubscription = this._keyManager.tabOut.subscribe(() => {
       this.close();
     });
@@ -428,9 +460,9 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
   /** Listens to selection events on each option. */
   private _listenToOptions(): void {
     this.options.forEach((option: MdOption) => {
-      const sub = option.onSelect.subscribe((isUserInput: boolean) => {
-        if (isUserInput) {
-          this._onChange(option.value);
+      const sub = option.onSelect.subscribe((event: MdOptionSelectEvent) => {
+        if (event.isUserInput && this._selected !== option) {
+          this._emitChangeEvent(option);
         }
         this._onSelect(option);
       });
@@ -442,6 +474,12 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
   private _dropSubscriptions(): void {
     this._subscriptions.forEach((sub: Subscription) => sub.unsubscribe());
     this._subscriptions = [];
+  }
+
+  /** Emits an event when the user selects an option. */
+  private _emitChangeEvent(option: MdOption): void {
+    this._onChange(option.value);
+    this.change.emit(new MdSelectChange(this, option.value));
   }
 
   /** Records option IDs to pass to the aria-owns property. */
@@ -483,9 +521,9 @@ export class MdSelect implements AfterContentInit, ControlValueAccessor, OnDestr
    */
   private _focusCorrectOption(): void {
     if (this.selected) {
-      this._keyManager.setFocus(this._getOptionIndex(this.selected));
+      this._keyManager.setActiveItem(this._getOptionIndex(this.selected));
     } else {
-      this._keyManager.focusFirstItem();
+      this._keyManager.setFirstItemActive();
     }
   }
 

@@ -1,9 +1,9 @@
-Get started with Angular Material 2 using the Angular CLI.
+Get started with Angular Material using the Angular CLI.
 
-## Install the CLI
+## Install Angular CLI
  
  ```bash
- npm install -g angular-cli
+ npm install -g @angular/cli
  ```
  
 ## Create a new project
@@ -37,10 +37,10 @@ export class PizzaPartyAppModule { }
 This is **required** to apply all of the core and theme styles to your application. You can either
 use a pre-built theme, or define your own custom theme.
 
-:trident:  See the [theming guide](guides/theming.md) for instructions.
+:trident:  See the [theming guide](./theming.md) for instructions.
 
 ### Additional setup for gestures
-Some components ()`md-slide-toggle`, `md-slider`, `mdTooltip`) rely on 
+Some components (`md-slide-toggle`, `md-slider`, `mdTooltip`) rely on 
 [HammerJS](http://hammerjs.github.io/) for gestures. In order to get the full feature-set of these
 components, HammerJS must be loaded into the application.
 
@@ -85,6 +85,6 @@ load the Material Design font in your `index.html`.
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 ```
 
-## Sample Angular Material 2 projects
-- [Material 2 Sample App](https://github.com/jelbourn/material2-app)
+## Sample Angular Material projects
+- [Material Sample App](https://github.com/jelbourn/material2-app)
 - [Angular Connect 2016 Demo](https://github.com/kara/leashed-in)

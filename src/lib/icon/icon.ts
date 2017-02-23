@@ -11,9 +11,12 @@ import {
   SimpleChange,
   ViewEncapsulation,
   AfterViewChecked,
+  Optional,
+  SkipSelf,
 } from '@angular/core';
-import {HttpModule} from '@angular/http';
-import {MdError, DefaultStyleCompatibilityModeModule} from '../core';
+import {HttpModule, Http} from '@angular/http';
+import {DomSanitizer} from '@angular/platform-browser';
+import {MdError, CompatibilityModule} from '../core';
 import {MdIconRegistry} from './icon-registry';
 export {MdIconRegistry} from './icon-registry';
 
@@ -64,6 +67,7 @@ export class MdIconInvalidNameError extends MdError {
   styleUrls: ['icon.css'],
   host: {
     'role': 'img',
+    '[class.mat-icon]': 'true',
   },
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -93,6 +97,7 @@ export class MdIcon implements OnChanges, OnInit, AfterViewChecked {
 
   private _previousFontSetClass: string;
   private _previousFontIconClass: string;
+  private _previousAriaLabel: string;
 
   constructor(
       private _elementRef: ElementRef,
@@ -107,7 +112,7 @@ export class MdIcon implements OnChanges, OnInit, AfterViewChecked {
 
   _setElementColor(color: string, isAdd: boolean) {
     if (color != null && color != '') {
-      this._renderer.setElementClass(this._elementRef.nativeElement, `md-${color}`, isAdd);
+      this._renderer.setElementClass(this._elementRef.nativeElement, `mat-${color}`, isAdd);
     }
   }
 
@@ -173,7 +178,8 @@ export class MdIcon implements OnChanges, OnInit, AfterViewChecked {
 
   private _updateAriaLabel() {
       const ariaLabel = this._getAriaLabel();
-      if (ariaLabel) {
+      if (ariaLabel && ariaLabel !== this._previousAriaLabel) {
+        this._previousAriaLabel = ariaLabel;
         this._renderer.setElementAttribute(this._elementRef.nativeElement, 'aria-label', ariaLabel);
       }
   }
@@ -244,17 +250,30 @@ export class MdIcon implements OnChanges, OnInit, AfterViewChecked {
   }
 }
 
+export function ICON_REGISTRY_PROVIDER_FACTORY(
+    parentRegistry: MdIconRegistry, http: Http, sanitizer: DomSanitizer) {
+  return parentRegistry || new MdIconRegistry(http, sanitizer);
+};
+
+export const ICON_REGISTRY_PROVIDER = {
+  // If there is already an MdIconRegistry available, use that. Otherwise, provide a new one.
+  provide: MdIconRegistry,
+  deps: [[new Optional(), new SkipSelf(), MdIconRegistry], Http, DomSanitizer],
+  useFactory: ICON_REGISTRY_PROVIDER_FACTORY,
+};
 
 @NgModule({
-  imports: [HttpModule, DefaultStyleCompatibilityModeModule],
-  exports: [MdIcon, DefaultStyleCompatibilityModeModule],
+  imports: [HttpModule, CompatibilityModule],
+  exports: [MdIcon, CompatibilityModule],
   declarations: [MdIcon],
+  providers: [ICON_REGISTRY_PROVIDER],
 })
 export class MdIconModule {
+  /** @deprecated */
   static forRoot(): ModuleWithProviders {
     return {
       ngModule: MdIconModule,
-      providers: [MdIconRegistry],
+      providers: [],
     };
   }
 }

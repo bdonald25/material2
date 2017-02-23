@@ -1,4 +1,5 @@
 import {browser, by, element, ElementArrayFinder, ElementFinder, Key} from 'protractor';
+import {pressKeys} from '../../util/actions';
 
 describe('tabs', () => {
   describe('basic behavior', () => {
@@ -9,7 +10,7 @@ describe('tabs', () => {
     beforeEach(() => {
       browser.get('/tabs');
       tabGroup = element(by.css('md-tab-group'));
-      tabLabels = element.all(by.css('.md-tab-label'));
+      tabLabels = element.all(by.css('.mat-tab-label'));
       tabBodies = element.all(by.css('md-tab-body'));
     });
 
@@ -24,34 +25,32 @@ describe('tabs', () => {
     });
 
     it('should change focus with keyboard interaction', () => {
+      let right = Key.RIGHT;
+      let left = Key.LEFT;
+
       tabLabels.get(0).click();
       expect(getFocusStates(tabLabels)).toEqual([true, false, false]);
 
-      pressKey(Key.RIGHT);
+      pressKeys(right);
       expect(getFocusStates(tabLabels)).toEqual([false, true, false]);
 
-      pressKey(Key.RIGHT);
+      pressKeys(right);
       expect(getFocusStates(tabLabels)).toEqual([false, false, true]);
 
-      pressKey(Key.RIGHT);
+      pressKeys(right);
       expect(getFocusStates(tabLabels)).toEqual([false, false, true]);
 
-      pressKey(Key.LEFT);
+      pressKeys(left);
       expect(getFocusStates(tabLabels)).toEqual([false, true, false]);
 
-      pressKey(Key.LEFT);
+      pressKeys(left);
       expect(getFocusStates(tabLabels)).toEqual([true, false, false]);
 
-      pressKey(Key.LEFT);
+      pressKeys(left);
       expect(getFocusStates(tabLabels)).toEqual([true, false, false]);
     });
   });
 });
-
-/** A helper function to perform the sendKey action. */
-function pressKey(key: string) {
-  browser.actions().sendKeys(key).perform();
-}
 
 /**
  * Returns an array of true/false that represents the focus states of the provided elements.
@@ -68,12 +67,12 @@ function getFocusStates(elements: ElementArrayFinder) {
 
 /** Returns an array of true/false that represents the active states for the provided elements. */
 function getLabelActiveStates(elements: ElementArrayFinder) {
-  return getClassStates(elements, 'md-tab-label-active');
+  return getClassStates(elements, 'mat-tab-label-active');
 }
 
 /** Returns an array of true/false that represents the active states for the provided elements */
 function getBodyActiveStates(elements: ElementArrayFinder) {
-  return getClassStates(elements, 'md-tab-body-active');
+  return getClassStates(elements, 'mat-tab-body-active');
 }
 
 /**
